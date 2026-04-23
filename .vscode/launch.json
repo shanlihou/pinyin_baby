@@ -27,6 +27,23 @@
                 "-d",
                 "windows"
             ]
+        },
+        {
+            "name": "Flutter (Android)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "-d",
+                "bd9f0a66"
+            ]
+        },
+        {
+            "name": "Build APK",
+            "type": "shell",
+            "command": "flutter build apk",
+            "problemMatcher": [
+                "$flutterMarkAndTaskToUpdate"
+            ]
         }
     ]
 }
