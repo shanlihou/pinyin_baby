@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pinyin_learn_page.dart';
+import 'alphabet_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -74,6 +75,34 @@ class HomePage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 24,
                     color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AlphabetPage(),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 60,
+                    vertical: 20,
+                  ),
+                  side: const BorderSide(color: Color(0xFF6C5CE7), width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text(
+                  '字母表',
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFF6C5CE7),
                   ),
                 ),
               ),
