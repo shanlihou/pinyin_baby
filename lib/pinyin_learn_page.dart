@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import 'audio_manager.dart';
 import 'constants.dart';
 
 class PinyinLearnPage extends StatefulWidget {
@@ -12,7 +12,7 @@ class PinyinLearnPage extends StatefulWidget {
 
 class _PinyinLearnPageState extends State<PinyinLearnPage>
     with SingleTickerProviderStateMixin {
-  late FlutterTts _flutterTts;
+  final AudioManager _audioManager = AudioManager();
   late Random _random;
 
   String _targetLetter = '';
@@ -23,10 +23,11 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
   late Animation<double> _shakeAnimation;
   late Animation<double> _celebrateAnimation;
 
+  Map<String, bool> _customAudioMap = {};
+
   @override
   void initState() {
     super.initState();
-    _flutterTts = FlutterTts();
     _random = Random();
 
     _animationController = AnimationController(
@@ -34,24 +35,28 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
       vsync: this,
     );
 
-    _shakeAnimation = Tween<double>(
-      begin: 0,
-      end: 24,
-    ).chain(CurveTween(curve: Curves.elasticIn)).animate(_animationController);
+    _shakeAnimation = Tween<double>(begin: 0, end: 24)
+        .chain(CurveTween(curve: Curves.elasticIn))
+        .animate(_animationController);
 
     _celebrateAnimation = Tween<double>(begin: 1, end: 1.3)
         .chain(CurveTween(curve: Curves.easeOutBack))
         .animate(_animationController);
 
-    _initTts();
+    _initAudio();
     _loadNextQuestion();
   }
 
-  Future<void> _initTts() async {
-    await _flutterTts.setLanguage('zh-CN');
-    await _flutterTts.setSpeechRate(0.4);
-    await _flutterTts.setVolume(1.0);
-    await _flutterTts.setPitch(1.2);
+  Future<void> _initAudio() async {
+    await _audioManager.init();
+    await _loadCustomAudioStatus();
+  }
+
+  Future<void> _loadCustomAudioStatus() async {
+    for (final letter in PinyinConstants.letters) {
+      _customAudioMap[letter] = await _audioManager.hasCustomAudio(letter);
+    }
+    if (mounted) setState(() {});
   }
 
   void _loadNextQuestion() {
@@ -59,7 +64,8 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
     final targetIndex = _random.nextInt(letters.length);
     _targetLetter = letters[targetIndex];
 
-    final availableOptions = letters.where((l) => l != _targetLetter).toList();
+    final availableOptions =
+        letters.where((l) => l != _targetLetter).toList();
     availableOptions.shuffle(_random);
 
     _options = [
@@ -71,11 +77,13 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
     _showingResult = false;
     _isCorrect = null;
 
-    _speakTarget();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakTarget();
+    });
   }
 
   Future<void> _speakTarget() async {
-    await _flutterTts.speak(_targetLetter);
+    await _audioManager.speak(_targetLetter);
   }
 
   void _onSelectOption(String letter) {
@@ -87,7 +95,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
     });
 
     if (_isCorrect!) {
-      _flutterTts.speak('答对了');
+      _audioManager.speak('答对了');
       _animationController.forward().then((_) {
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
@@ -97,7 +105,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
         });
       });
     } else {
-      _flutterTts.speak('再试一次');
+      _audioManager.speak('再试一次');
       _animationController.forward().then((_) {
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
@@ -112,9 +120,59 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
     }
   }
 
+  Future<void> _deleteRecording(String letter) async {
+    await _audioManager.deleteCustomAudio(letter);
+    _customAudioMap[letter] = false;
+    if (mounted) setState(() {});
+  }
+
+  void _showInfoDialog(String letter) {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text('关于 "$letter" '),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_customAudioMap[letter] == true) ...[
+                  const Icon(Icons.check_circle, color: Colors.green, size: 30),
+                  const Text('已有自定义录音'),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () async {
+                      await _deleteRecording(letter);
+                      setDialogState(() {});
+                      setState(() {});
+                    },
+                    child: const Text('删除录音'),
+                  ),
+                ] else ...[
+                  const Text('长按拼音按钮可录音'),
+                  const SizedBox(height: 10),
+                  const Text(
+                    '(录音功能开发中...)',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('关闭'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
-    _flutterTts.stop();
+    _audioManager.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -128,7 +186,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
           children: [
             const SizedBox(height: 40),
             Text(
-              '听录音，选择正确的拼音',
+              '听录音,选择正确的拼音',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -140,10 +198,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
               onPressed: _speakTarget,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6C5CE7),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
@@ -204,34 +259,57 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
   Widget _buildLetterButton(String letter, Color? bgColor) {
     final colors = PinyinConstants.buttonColors;
     final colorIndex = _options.indexOf(letter) % colors.length;
+    final hasCustom = _customAudioMap[letter] == true;
 
     return GestureDetector(
       onTap: () => _onSelectOption(letter),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: PinyinConstants.buttonSize,
-        height: PinyinConstants.buttonSize,
-        decoration: BoxDecoration(
-          color: bgColor ?? colors[colorIndex],
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: (bgColor ?? colors[colorIndex]).withAlpha(100),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
+      onLongPress: () => _showInfoDialog(letter),
+      child: Stack(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: PinyinConstants.buttonSize,
+            height: PinyinConstants.buttonSize,
+            decoration: BoxDecoration(
+              color: bgColor ?? colors[colorIndex],
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: (bgColor ?? colors[colorIndex]).withAlpha(100),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            letter,
-            style: TextStyle(
-              fontSize: PinyinConstants.buttonFontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+            child: Center(
+              child: Text(
+                letter,
+                style: TextStyle(
+                  fontSize: PinyinConstants.buttonFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
-        ),
+          if (hasCustom)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.mic,
+                  color: Colors.white,
+                  size: 12,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
