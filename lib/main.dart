@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'pinyin_learn_page.dart';
-import 'alphabet_page.dart';
+import 'char_learn_page.dart';
+import 'char_alphabet_page.dart';
+import 'char_library_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '拼音宝宝',
+      title: '汉字宝宝',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -35,7 +36,7 @@ class HomePage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                '拼音宝宝',
+                '汉字宝宝',
                 style: TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
@@ -44,19 +45,19 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               const Text(
-                '快来学拼音吧',
+                '快来学汉字吧',
                 style: TextStyle(
                   fontSize: 24,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const PinyinLearnPage(),
+                      builder: (context) => const CharLearnPage(),
                     ),
                   );
                 },
@@ -84,7 +85,7 @@ class HomePage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AlphabetPage(),
+                      builder: (context) => const CharAlphabetPage(),
                     ),
                   );
                 },
@@ -99,10 +100,38 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  '字母表',
+                  '汉字表',
                   style: TextStyle(
                     fontSize: 24,
                     color: Color(0xFF6C5CE7),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CharLibraryPage(),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 60,
+                    vertical: 20,
+                  ),
+                  side: const BorderSide(color: Color(0xFF00B894), width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text(
+                  '词库设置',
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFF00B894),
                   ),
                 ),
               ),

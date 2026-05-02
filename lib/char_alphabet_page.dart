@@ -1,24 +1,47 @@
 import 'package:flutter/material.dart';
-import 'constants.dart';
+import 'package:flutter/services.dart';
+import 'audio_manager.dart';
+import 'char_constants.dart';
 
-class AlphabetPage extends StatefulWidget {
-  const AlphabetPage({super.key});
+class CharAlphabetPage extends StatefulWidget {
+  const CharAlphabetPage({super.key});
 
   @override
-  State<AlphabetPage> createState() => _AlphabetPageState();
+  State<CharAlphabetPage> createState() => _CharAlphabetPageState();
 }
 
-class _AlphabetPageState extends State<AlphabetPage> {
-  final Map<String, bool> _hasCustomAudio = {};
-  String? _recordingLetter;
-  bool _isRecording = false;
+class _CharAlphabetPageState extends State<CharAlphabetPage> {
+  final AudioManager _audioManager = AudioManager();
+  final Map<String, bool> _hasAudio = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAudioStatus();
+  }
+
+  Future<bool> _hasAsset(String pinyin) async {
+    try {
+      await rootBundle.load('assets/audio/$pinyin.m4a');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _loadAudioStatus() async {
+    for (final item in CharConstants.defaultChars) {
+      _hasAudio[item.pinyin] = await _hasAsset(item.pinyin);
+    }
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F8FF),
       appBar: AppBar(
-        title: const Text('拼音字母表'),
+        title: const Text('汉字表'),
         backgroundColor: const Color(0xFF6C5CE7),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -29,7 +52,7 @@ class _AlphabetPageState extends State<AlphabetPage> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                '点击字母可录音',
+                '点击汉字播放发音',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.grey,
@@ -44,23 +67,23 @@ class _AlphabetPageState extends State<AlphabetPage> {
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                 ),
-                itemCount: PinyinConstants.letters.length,
+                itemCount: CharConstants.defaultChars.length,
                 itemBuilder: (context, index) {
-                  final letter = PinyinConstants.letters[index];
-                  final hasCustom = _hasCustomAudio[letter] ?? false;
+                  final item = CharConstants.defaultChars[index];
+                  final hasAudio = _hasAudio[item.pinyin] ?? false;
 
                   return GestureDetector(
-                    onTap: () => _showRecordDialog(letter),
+                    onTap: () => _audioManager.speak(item.pinyin),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
-                        color: hasCustom
+                        color: hasAudio
                             ? const Color(0xFF00B894)
                             : const Color(0xFF6C5CE7),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: (hasCustom
+                            color: (hasAudio
                                     ? const Color(0xFF00B894)
                                     : const Color(0xFF6C5CE7))
                                 .withAlpha(80),
@@ -73,27 +96,28 @@ class _AlphabetPageState extends State<AlphabetPage> {
                         children: [
                           Center(
                             child: Text(
-                              letter,
+                              item.char,
                               style: const TextStyle(
-                                fontSize: 24,
+                                fontSize: 40,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
                           ),
-                          if (_recordingLetter == letter && _isRecording)
-                            Positioned.fill(
+                          if (hasAudio)
+                            Positioned(
+                              top: 4,
+                              right: 4,
                               child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withAlpha(150),
-                                  borderRadius: BorderRadius.circular(12),
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
                                 ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.mic,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
+                                child: const Icon(
+                                  Icons.volume_up,
+                                  color: Colors.green,
+                                  size: 12,
                                 ),
                               ),
                             ),
@@ -106,32 +130,6 @@ class _AlphabetPageState extends State<AlphabetPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showRecordDialog(String letter) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('字母 "$letter" '),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('录音功能开发中...'),
-            const SizedBox(height: 10),
-            const Text(
-              '需要先安装录音插件',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
       ),
     );
   }

@@ -1,29 +1,31 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'audio_manager.dart';
-import 'constants.dart';
+import 'char_constants.dart';
 
-class PinyinLearnPage extends StatefulWidget {
-  const PinyinLearnPage({super.key});
+class CharLearnPage extends StatefulWidget {
+  const CharLearnPage({super.key});
 
   @override
-  State<PinyinLearnPage> createState() => _PinyinLearnPageState();
+  State<CharLearnPage> createState() => _CharLearnPageState();
 }
 
-class _PinyinLearnPageState extends State<PinyinLearnPage>
+class _CharLearnPageState extends State<CharLearnPage>
     with SingleTickerProviderStateMixin {
   final AudioManager _audioManager = AudioManager();
   late Random _random;
 
-  String _targetLetter = '';
-  List<String> _options = [];
+  String _targetChar = '';
+  String _targetPinyin = '';
+  List<CharItem> _options = [];
   bool _showingResult = false;
   bool? _isCorrect;
   late AnimationController _animationController;
   late Animation<double> _shakeAnimation;
   late Animation<double> _celebrateAnimation;
 
-  Map<String, bool> _customAudioMap = {};
+  final Map<String, bool> _hasAudioMap = {};
 
   @override
   void initState() {
@@ -49,28 +51,37 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
 
   Future<void> _initAudio() async {
     await _audioManager.init();
-    await _loadCustomAudioStatus();
+    await _loadAudioStatus();
   }
 
-  Future<void> _loadCustomAudioStatus() async {
-    for (final letter in PinyinConstants.letters) {
-      _customAudioMap[letter] = await _audioManager.hasCustomAudio(letter);
+  Future<void> _loadAudioStatus() async {
+    for (final item in CharConstants.defaultChars) {
+      _hasAudioMap[item.pinyin] = await _hasAsset(item.pinyin);
     }
     if (mounted) setState(() {});
   }
 
-  void _loadNextQuestion() {
-    final letters = PinyinConstants.letters;
-    final targetIndex = _random.nextInt(letters.length);
-    _targetLetter = letters[targetIndex];
+  Future<bool> _hasAsset(String pinyin) async {
+    try {
+      await rootBundle.load('assets/audio/$pinyin.m4a');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
-    final availableOptions =
-        letters.where((l) => l != _targetLetter).toList();
+  void _loadNextQuestion() {
+    final chars = CharConstants.defaultChars;
+    final targetIndex = _random.nextInt(chars.length);
+    _targetChar = chars[targetIndex].char;
+    _targetPinyin = chars[targetIndex].pinyin;
+
+    final availableOptions = chars.where((c) => c.char != _targetChar).toList();
     availableOptions.shuffle(_random);
 
     _options = [
-      _targetLetter,
-      ...availableOptions.take(PinyinConstants.optionCount - 1),
+      chars[targetIndex],
+      ...availableOptions.take(CharConstants.optionCount - 1),
     ];
     _options.shuffle(_random);
 
@@ -83,15 +94,15 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
   }
 
   Future<void> _speakTarget() async {
-    await _audioManager.speak(_targetLetter);
+    await _audioManager.speak(_targetPinyin);
   }
 
-  void _onSelectOption(String letter) {
+  void _onSelectOption(CharItem item) {
     if (_showingResult) return;
 
     setState(() {
       _showingResult = true;
-      _isCorrect = letter == _targetLetter;
+      _isCorrect = item.char == _targetChar;
     });
 
     if (_isCorrect!) {
@@ -120,56 +131,6 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
     }
   }
 
-  Future<void> _deleteRecording(String letter) async {
-    await _audioManager.deleteCustomAudio(letter);
-    _customAudioMap[letter] = false;
-    if (mounted) setState(() {});
-  }
-
-  void _showInfoDialog(String letter) {
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text('关于 "$letter" '),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_customAudioMap[letter] == true) ...[
-                  const Icon(Icons.check_circle, color: Colors.green, size: 30),
-                  const Text('已有自定义录音'),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: () async {
-                      await _deleteRecording(letter);
-                      setDialogState(() {});
-                      setState(() {});
-                    },
-                    child: const Text('删除录音'),
-                  ),
-                ] else ...[
-                  const Text('长按拼音按钮可录音'),
-                  const SizedBox(height: 10),
-                  const Text(
-                    '(录音功能开发中...)',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('关闭'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _audioManager.dispose();
@@ -186,7 +147,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
           children: [
             const SizedBox(height: 40),
             Text(
-              '听录音,选择正确的拼音',
+              '听发音,选择正确的汉字',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -225,8 +186,8 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
                     spacing: 16,
                     runSpacing: 16,
                     alignment: WrapAlignment.center,
-                    children: _options.map((letter) {
-                      final isSelected = letter == _targetLetter;
+                    children: _options.map((item) {
+                      final isSelected = item.char == _targetChar;
                       Color? bgColor;
                       if (_showingResult) {
                         if (isSelected) {
@@ -242,7 +203,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
                               : 0,
                           0,
                         ),
-                        child: _buildLetterButton(letter, bgColor),
+                        child: _buildCharButton(item, bgColor),
                       );
                     }).toList(),
                   ),
@@ -256,20 +217,19 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
     );
   }
 
-  Widget _buildLetterButton(String letter, Color? bgColor) {
-    final colors = PinyinConstants.buttonColors;
-    final colorIndex = _options.indexOf(letter) % colors.length;
-    final hasCustom = _customAudioMap[letter] == true;
+  Widget _buildCharButton(CharItem item, Color? bgColor) {
+    final colors = CharConstants.buttonColors;
+    final colorIndex = _options.indexOf(item) % colors.length;
+    final hasAudio = _hasAudioMap[item.pinyin] == true;
 
     return GestureDetector(
-      onTap: () => _onSelectOption(letter),
-      onLongPress: () => _showInfoDialog(letter),
+      onTap: () => _onSelectOption(item),
       child: Stack(
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: PinyinConstants.buttonSize,
-            height: PinyinConstants.buttonSize,
+            width: CharConstants.buttonSize,
+            height: CharConstants.buttonSize,
             decoration: BoxDecoration(
               color: bgColor ?? colors[colorIndex],
               borderRadius: BorderRadius.circular(20),
@@ -283,16 +243,16 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
             ),
             child: Center(
               child: Text(
-                letter,
+                item.char,
                 style: TextStyle(
-                  fontSize: PinyinConstants.buttonFontSize,
+                  fontSize: CharConstants.buttonFontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
             ),
           ),
-          if (hasCustom)
+          if (hasAudio)
             Positioned(
               top: 4,
               right: 4,
@@ -303,7 +263,7 @@ class _PinyinLearnPageState extends State<PinyinLearnPage>
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.mic,
+                  Icons.volume_up,
                   color: Colors.white,
                   size: 12,
                 ),
