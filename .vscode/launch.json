@@ -11,6 +11,15 @@
             ]
         },
         {
+            "name": "macos",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "-d",
+                "macos"
+            ]
+        },
+        {
             "name": "Flutter (Chrome)",
             "request": "launch",
             "type": "dart",

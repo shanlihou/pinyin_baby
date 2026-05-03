@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'audio_manager.dart';
 import 'char_constants.dart';
 
@@ -25,8 +24,6 @@ class _CharLearnPageState extends State<CharLearnPage>
   late Animation<double> _shakeAnimation;
   late Animation<double> _celebrateAnimation;
 
-  final Map<String, bool> _hasAudioMap = {};
-
   @override
   void initState() {
     super.initState();
@@ -50,24 +47,8 @@ class _CharLearnPageState extends State<CharLearnPage>
   }
 
   Future<void> _initAudio() async {
-    await _audioManager.init();
-    await _loadAudioStatus();
-  }
-
-  Future<void> _loadAudioStatus() async {
-    for (final item in CharConstants.defaultChars) {
-      _hasAudioMap[item.pinyin] = await _hasAsset(item.pinyin);
-    }
-    if (mounted) setState(() {});
-  }
-
-  Future<bool> _hasAsset(String pinyin) async {
-    try {
-      await rootBundle.load('assets/audio/$pinyin.m4a');
-      return true;
-    } catch (_) {
-      return false;
-    }
+    final ok = await _audioManager.init();
+    print('TTS init success: $ok');
   }
 
   void _loadNextQuestion() {
@@ -220,56 +201,34 @@ class _CharLearnPageState extends State<CharLearnPage>
   Widget _buildCharButton(CharItem item, Color? bgColor) {
     final colors = CharConstants.buttonColors;
     final colorIndex = _options.indexOf(item) % colors.length;
-    final hasAudio = _hasAudioMap[item.pinyin] == true;
 
     return GestureDetector(
       onTap: () => _onSelectOption(item),
-      child: Stack(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: CharConstants.buttonSize,
-            height: CharConstants.buttonSize,
-            decoration: BoxDecoration(
-              color: bgColor ?? colors[colorIndex],
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: (bgColor ?? colors[colorIndex]).withAlpha(100),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: CharConstants.buttonSize,
+        height: CharConstants.buttonSize,
+        decoration: BoxDecoration(
+          color: bgColor ?? colors[colorIndex],
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: (bgColor ?? colors[colorIndex]).withAlpha(100),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-            child: Center(
-              child: Text(
-                item.char,
-                style: TextStyle(
-                  fontSize: CharConstants.buttonFontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            item.char,
+            style: TextStyle(
+              fontSize: CharConstants.buttonFontSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-          if (hasAudio)
-            Positioned(
-              top: 4,
-              right: 4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.volume_up,
-                  color: Colors.white,
-                  size: 12,
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
